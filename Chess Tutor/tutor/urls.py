@@ -1,7 +1,9 @@
 
+
 from django.urls import path
-from . import views
+from . import views  # Add this import statement
 
 urlpatterns = [
-    path('api/chess-tutor/', views.chess_tutor, name='chess_tutor'),
+    path('', views.chat_view, name='chat'),
+    path('api/chess-tutor/', views.chess_tutor_api, name='chess_tutor_api'),
 ]
