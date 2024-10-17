@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Tutor Chat</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+<div id="chat-container">
+    <div id="chat-messages"></div>
+    <form id="chat-form">
+        {% csrf_token %}
+        <input type="text" id="user-input" placeholder="Type your message..." required>
+        <button type="submit">Send</button>
+    </form>
+</div>
+<script src="{% static 'js/chat.js' %}"></script>
+</body>
+</html>

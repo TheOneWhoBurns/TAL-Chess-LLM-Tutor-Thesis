@@ -1,1 +1,0 @@
-El jugador es el usuario final del proyecto de tesis, el usuario es un jugador de ajedrez que 
