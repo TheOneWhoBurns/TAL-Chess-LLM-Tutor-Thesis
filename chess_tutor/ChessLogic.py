@@ -1,23 +1,18 @@
-from typing import List, Dict, Optional
+from typing import List, Dict
 import chess
 from .maia_engine import MaiaEngine
-import os
-<<<<<<< HEAD
-from .intent import intent_classifier
 from .PromptMaker import PromptMaker
 from .models import model_manager
-=======
->>>>>>> parent of de49885 (latetest updates)
 
 class ChessLogicUnit:
     def __init__(self, project_dir=None):
         self.board = chess.Board()
         self.move_history = []
-<<<<<<< HEAD
         if project_dir:
             self.maia_engine = MaiaEngine(project_dir)
         self.game_in_progress = False
         self.prompt_maker = PromptMaker()
+        self.player_color = chess.WHITE  # Player is always white
 
     def get_move_history(self) -> List[str]:
         """Get the history of moves"""
@@ -25,21 +20,11 @@ class ChessLogicUnit:
 
     def get_current_position(self) -> str:
         """Get current FEN position"""
-=======
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_dir = os.path.dirname(current_dir)
-        self.maia_engine = MaiaEngine(project_dir)
-
-    def get_current_position(self):
-        """
-
-        Get the current position of the board.
-
-        Returns:
-        str: FEN representation of the current board state
-        """
->>>>>>> parent of de49885 (latetest updates)
         return self.board.fen()
+
+    def _is_player_turn(self) -> bool:
+        """Check if it's the player's turn"""
+        return self.board.turn == self.player_color
 
     def handle_message(self, intent_result: Dict) -> Dict:
         """Main entry point for processing messages"""
@@ -72,9 +57,16 @@ class ChessLogicUnit:
                 "moves": []
             }
 
-        # Handle different intents
+        # Handle move intent with turn checking
         if intent == "make_move" and move:
+            if not self._is_player_turn():
+                return {
+                    "status": "error",
+                    "message": "It's not your turn yet.",
+                    "moves": self.move_history
+                }
             return self._handle_move(message, move)
+
         elif intent == "ask_explanation":
             return self._handle_explanation(message)
         elif intent == "general_chat":
@@ -82,8 +74,101 @@ class ChessLogicUnit:
         else:
             return self._handle_unknown(message)
 
+    def _make_move(self, move_str: str) -> bool:
+        """Make a move on the board with improved move parsing"""
+        try:
+            # Check for same square move
+            if len(move_str) >= 4 and move_str[:2] == move_str[2:4]:
+                return False
+
+            # Clean up the move string
+            move_str = move_str.replace('-', '').strip()
+
+            # Try parsing as SAN first (e4, Nf3 format)
+            try:
+                move = self.board.parse_san(move_str)
+                if move in self.board.legal_moves:
+                    self.board.push(move)
+                    self.move_history.append(move_str)
+                    return True
+            except ValueError:
+                pass
+
+            # Check for castling notation (O-O or O-O-O)
+            if move_str.upper() in ['OO', 'OOO', '00', '000']:
+                is_kingside = len(move_str) <= 2
+                if is_kingside:
+                    castle_move = 'e1g1' if self.board.turn else 'e8g8'
+                else:
+                    castle_move = 'e1c1' if self.board.turn else 'e8c8'
+                try:
+                    move = chess.Move.from_uci(castle_move)
+                    if move in self.board.legal_moves:
+                        san_move = self.board.san(move)
+                        self.board.push(move)
+                        self.move_history.append(san_move)
+                        return True
+                except ValueError:
+                    pass
+                
+            # Try parsing as UCI (e2e4 format)
+            try:
+                move = chess.Move.from_uci(move_str)
+                if move in self.board.legal_moves:
+                    san_move = self.board.san(move)  # Convert to SAN for history
+                    self.board.push(move)
+                    self.move_history.append(san_move)
+                    return True
+            except ValueError:
+                pass
+
+            # Special handling for piece moves with ambiguous notation
+            if move_str[0].isupper() and len(move_str) >= 3:  # Piece move (e.g., "Nc3")
+                piece_symbol = move_str[0].lower()
+                if piece_symbol in chess.PIECE_SYMBOLS:
+                    piece_type = chess.PIECE_SYMBOLS.index(piece_symbol)
+
+                    # Extract destination square from the move string
+                    dest_str = move_str[-2:]  # Last two characters should be the destination
+                    try:
+                        dest_square = chess.parse_square(dest_str)
+                    except ValueError:
+                        return False
+
+                    # Find all pieces of the correct type that can move to the destination
+                    valid_moves = []
+                    for legal_move in self.board.legal_moves:
+                        piece = self.board.piece_at(legal_move.from_square)
+                        if (piece and
+                                piece.piece_type == piece_type and
+                                piece.color == self.board.turn and
+                                legal_move.to_square == dest_square):
+                            valid_moves.append(legal_move)
+
+                    # If we found exactly one valid move, make it
+                    if len(valid_moves) == 1:
+                        move = valid_moves[0]
+                        san_move = self.board.san(move)  # Convert to SAN for history
+                        self.board.push(move)
+                        self.move_history.append(san_move)
+                        return True
+
+            return False
+
+        except (ValueError, AttributeError) as e:
+            print(f"Move error: {str(e)}")
+            return False
+
     def _handle_move(self, message: str, move: str) -> Dict:
         """Handle move intent"""
+        # Check for same square move
+        if len(move) >= 4 and move[:2] == move[2:4]:
+            return {
+                "status": "ignore",
+                "message": "",
+                "moves": self.move_history
+            }
+
         if not self._make_move(move):
             return {
                 "status": "error",
@@ -92,20 +177,23 @@ class ChessLogicUnit:
             }
 
         # Get Maia's response
-        maia_move = self._get_maia_move()
+        maia_move = self.maia_engine.get_best_move(self.board)
+        san_response = self.board.san(maia_move)  # Convert Move object to SAN
+        self.board.push(maia_move)
+        self.move_history.append(san_response)
 
         # If it's just a move without question, don't add commentary
         if self.prompt_maker._is_lone_move(message):
             return {
                 "status": "success",
-                "message": f"{move}. Maia plays {maia_move}.",
+                "message": f"{move}. Maia plays {san_response}.",
                 "moves": self.move_history
             }
 
         # Get analysis if user asked something with the move
         prompt = self.prompt_maker.create_move_prompt(
             user_move=move,
-            maia_move=maia_move,
+            maia_move=san_response,
             board=self.board,
             user_message=message
         )
@@ -114,13 +202,13 @@ class ChessLogicUnit:
             analysis = model_manager.quick_response(prompt)
             return {
                 "status": "success",
-                "message": f"{move}. Maia plays {maia_move}. {analysis}",
+                "message": analysis ,
                 "moves": self.move_history
             }
 
         return {
             "status": "success",
-            "message": f"{move}. Maia plays {maia_move}.",
+            "message": f"{move}. Maia plays {san_response}.",
             "moves": self.move_history
         }
 
@@ -158,67 +246,17 @@ class ChessLogicUnit:
             "moves": self.move_history
         }
 
-    def _make_move(self, move_san: str) -> bool:
-        """Make a move on the board"""
-        try:
-            move = self.board.parse_san(move_san)
-            if move in self.board.legal_moves:
-                self.board.push(move)
-                self.move_history.append(move_san)
-                return True
-            return False
-        except ValueError:
-            return False
-
-    def _get_maia_move(self) -> str:
-        """Get and make Maia's move"""
-        move = self.maia_engine.get_best_move(self.board)
-        san_move = self.board.san(move)
-        self.board.push(move)
-        self.move_history.append(san_move)
-        return san_move
-
     def _reset_game(self):
         """Reset the game state"""
         self.board.reset()
         self.move_history.clear()
-<<<<<<< HEAD
         self.game_in_progress = True
-=======
-
-    def handle_intent(self, intent, move=None):
-        """
-        Handle different intents from the intent classification system.
-
-        Args:
-        intent (str): The classified intent
-        move (str, optional): The move if the intent is 'make_chess_move'
-
-        Returns:
-        dict: A response based on the intent
-        """
-        if intent == "make_chess_move":
-            if move and self.make_move(move):
-                maia_move = self.get_maia_move()
-                return {"status": "success", "message": f"Move {move} made successfully. Maia responds with {maia_move}."}
-            else:
-                return {"status": "error", "message": "Invalid move."}
-        elif intent == "ask_explanation":
-            return {"status": "success", "message": "What would you like explained?"}
-        elif intent == "request_game":
-            self.reset_game()
-            return {"status": "success", "message": "New game started."}
-        elif intent == "general_chat":
-            return {"status": "success", "message": "What would you like to chat about?"}
-        elif intent == "quit_game":
-            return {"status": "success", "message": "Game ended. Thanks for playing!"}
-        else:
-            return {"status": "error", "message": "Unknown intent."}
->>>>>>> parent of de49885 (latetest updates)
+        self.player_color = chess.WHITE  # Reset player color
 
     def close(self):
         """Clean up resources"""
-        self.maia_engine.close()
+        if hasattr(self, 'maia_engine'):
+            self.maia_engine.close()
 
     def __del__(self):
         self.close()

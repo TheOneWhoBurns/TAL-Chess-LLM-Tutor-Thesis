@@ -10,16 +10,29 @@ class PromptMaker:
     def create_move_prompt(self, user_move: str, maia_move: str, board: chess.Board, user_message: str) -> str:
         """
         Create prompt for move analysis only if needed
-        - For lone moves: no prompt needed
-        - For move questions: create analysis prompt
         """
-        # If it's just a move notation, no prompt needed
-        if self._is_lone_move(user_message):
-            return ""
 
         # If user asked about the move, create analysis prompt
-        return f"""Looking at the chess position {board.fen()}, 
-                  what do you think about the moves {user_move} and {maia_move}?"""
+        return f"""
+            Here is the current chess position and the moves to evaluate:
+
+            {board.fen()}
+            {user_move}
+            {maia_move}
+            
+            Instructions:
+            1. Analyze the given chess position and the two moves (user's move and Maia's move).
+            2. Evaluate the moves based on their strategic importance and impact on the game.
+            3. Provide a concise response to the user, focusing on educational value.
+            
+            Use the following guidelines for your response:
+            - For normal moves: Offer a brief, one-line comment.
+            - For crucial moves: Explain the move's importance and potential impact in 2-3 sentences.
+            - If explaining a concept: Provide a concise explanation that hints at the best move without revealing it directly.
+            
+            Always maintain a friendly and encouraging tone, and adapt your explanations to the apparent skill level of the user
+            Then, provide your feedback to the user
+            Remember to keep your response concise, at most one sentence, providing longer explanations only when strictly necessary for crucial moves or complex concepts."""
 
     def create_chat_prompt(self, board: chess.Board, user_message: str) -> str:
         """Create prompt for chess questions/chat"""

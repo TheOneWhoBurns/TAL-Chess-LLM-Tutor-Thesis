@@ -5,20 +5,14 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 import os
 
-from .intent import categorize_intent, intent_classifier
+from .intent import  intent_classifier
 from .ChessLogic import ChessLogicUnit
-<<<<<<< HEAD
 from .PromptMaker import PromptMaker
-from .models import model_manager
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_dir = os.path.dirname(current_dir)
 chess_logic = ChessLogicUnit(project_dir)
 prompt_maker = PromptMaker()
-=======
-
-chess_logic = ChessLogicUnit()
->>>>>>> parent of de49885 (latetest updates)
 
 def chat_view(request):
     return render(request, 'chat.html')
@@ -26,10 +20,10 @@ def chat_view(request):
 @csrf_exempt
 def send_message(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        message = data.get('message', '')
+        try:
+            data = json.loads(request.body)
+            message = data.get('message', '')
 
-<<<<<<< HEAD
             # Update intent classifier's board state
             intent_classifier.update_board(chess_logic.board)
 
@@ -59,22 +53,3 @@ def send_message(request):
             })
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
-=======
-        response = process_message(message)
-
-        return JsonResponse({'response': response})
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
-
-def process_message(message):
-    intent_result = categorize_intent(message)
-    predicted_intent = intent_result["intent"]
-    confidence_score = intent_result["confidence"]
-    extracted_move = intent_result["move"]
-
-    response = chess_logic.handle_intent(predicted_intent, extracted_move)
-
-    if response["status"] == "success":
-        return response["message"]
-    else:
-        return f"Error: {response['message']} (Intent: {predicted_intent}, Confidence: {confidence_score:.2f})"
->>>>>>> parent of de49885 (latetest updates)

@@ -1,9 +1,8 @@
 # models.py
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+from transformers import pipeline
 import torch
-from django.conf import settings
+import anthropic
 import os
-from functools import lru_cache
 
 class ModelManager:
     _instance = None
@@ -22,6 +21,7 @@ class ModelManager:
         self._initialize_models()
         self._initialized = True
 
+
     def _get_device(self):
         if torch.cuda.is_available():
             return "cuda"
@@ -29,7 +29,7 @@ class ModelManager:
 
     def _initialize_models(self):
         try:
-            # Initialize small models first for quick intent/move detection
+            # Keep the existing classification pipelines
             self.intent_pipeline = pipeline(
                 'zero-shot-classification',
                 "facebook/bart-large-mnli",
@@ -41,17 +41,9 @@ class ModelManager:
                 device=self.device
             )
 
-            # Initialize LLaMA with proper tokenizer and model handling
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                "meta-llama/Llama-3.2-1B",
-                token=settings.HF_TOKEN
+            self.client = anthropic.Anthropic(
+                api_key= os.getenv('ANTHROPIC_API_KEY')
             )
-
-            self.llm_model = AutoModelForCausalLM.from_pretrained(
-                "meta-llama/Llama-3.2-1B",
-                token=settings.HF_TOKEN,
-                torch_dtype=torch.float32
-            ).to(self.device)
 
         except Exception as e:
             print(f"Error initializing models: {e}")
@@ -60,25 +52,61 @@ class ModelManager:
     def quick_response(self, prompt: str) -> str:
         """Single method for generating responses"""
         try:
-            # Generate response using LLaMA
-            inputs = self.tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            # Generate response using Claude
+            message = self.client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=150,  # Keep responses short
+                temperature=0.7,
+                system="""
+                
+                You are an AI chess tutor designed to play chess with users while providing instruction to help them improve their skills. Your goal is to create an engaging and educational experience for the user.
 
-            with torch.no_grad():
-                outputs = self.llm_model.generate(
-                    **inputs,
-                    max_length=150,  # Keep responses short
-                    num_return_sequences=1,
-                    temperature=0.7,
-                    do_sample=True,
-                    pad_token_id=self.tokenizer.pad_token_id
-                )
+                Your task is to evaluate the move, provide appropriate feedback, and continue the game. Follow these guidelines:
+                
+                1. Evaluate the move:
+                   - Determine if it's a normal move, a crucial move, or if the user is asking for an explanation.
+                
+                2. Respond based on the move type:
+                   - For normal moves: Provide a brief, one-line comment about the move.
+                   - For crucial moves: Explain why the move is important and its potential impact on the game.
+                   - If the user asks for an explanation: Offer insights that hint at the best move without directly revealing it.
+                
+                3. Educational focus:
+                   - Always aim to teach the user and help them improve their chess skills.
+                   - Provide broader strategic insights when appropriate.
+                   - Encourage critical thinking by asking the user questions about their move choices.
+                
+                4. Maintain a friendly and encouraging tone throughout the interaction.
+                
+                Before responding, analyze the move and plan your response
+                1. Identify the user's move and its impact on the board.
+                2. Evaluate whether it's a normal move, crucial move, or a request for explanation.
+                3. Consider potential strategic implications.
+                4. Plan your response based on the move type.
+                
+                Then, provide your response to the user.
+                
+                Remember to adapt your explanations to the apparent skill level of the user, and always strive to make the learning experience engaging and informative.
+                
+                
+                """,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            )
 
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            response = response.replace(prompt, "").strip()
+            response = message.content[0].text
 
-            # Fallback for empty or invalid responses
-            if not response or response == prompt:
+            # Fallback for empty responses
+            if not response or response.strip() == "":
                 return self._get_fallback_response()
 
             return response

@@ -1,28 +1,8 @@
-<<<<<<< HEAD
 # intent.py
 from typing import Dict, Optional
 import re
 import chess
 from .models import model_manager
-=======
-from transformers import pipeline
-import torch
-from typing import Dict
-
-# Check if a GPU is available
-device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-print(f"Using device: {device}")
-
-# Load pre-trained intent detection model from Hugging Face
-intent_pipeline = pipeline('zero-shot-classification',
-                           model="facebook/bart-large-mnli",
-                           device=device)
-
-# Load pre-trained RoBERTa model from Hugging Face for move extraction
-roberta_qa = pipeline("question-answering",
-                      model="deepset/roberta-base-squad2",
-                      device=device)
->>>>>>> parent of de49885 (latetest updates)
 
 class IntentClassifier:
     INTENTS = [
@@ -33,15 +13,26 @@ class IntentClassifier:
         "quit_game"
     ]
 
-<<<<<<< HEAD
     def __init__(self):
         self._move_patterns = [
+            # Add pattern for long algebraic notation (e.g. e2-e4, b1-c3)
+            r'\b[a-h][1-8]-[a-h][1-8]\b',
+            # Existing patterns
             r'\b[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?\+?\#?\b',
             r'\b[NBRQK][a-h1-8][a-h][1-8]\b',
             r'\b[a-h][1-8]\b',
             r'\bO-O(-O)?\b'
         ]
         self._move_regex = re.compile('|'.join(self._move_patterns))
+
+        # Add patterns for advice requests
+        self._advice_patterns = [
+            r'\b(?:what|suggest|recommend|advice|help|unsure|uncertain)\b.*\b(?:move|play|next)\b',
+            r'\b(?:good|best)\s+(?:move|continuation)\b',
+            r'\bshould\s+(?:i|we)\s+(?:move|play)\b'
+        ]
+        self._advice_regex = re.compile('|'.join(self._advice_patterns), re.IGNORECASE)
+
         self.board = chess.Board()
 
     def classify(self, message: str) -> Dict[str, any]:
@@ -55,7 +46,15 @@ class IntentClassifier:
                 "confidence": 0.9
             }
 
-        # Then use model for intent
+        # Check for advice requests before using the model
+        if self._advice_regex.search(message):
+            return {
+                "intent": "ask_explanation",
+                "move": None,
+                "confidence": 0.9
+            }
+
+        # Then use model for other intents
         result = model_manager.get_intent(message, self.INTENTS)
         return {
             "intent": result["labels"][0],
@@ -63,9 +62,38 @@ class IntentClassifier:
             "confidence": result["scores"][0]
         }
 
+    def convert_long_algebraic(self, move_str: str) -> Optional[str]:
+        """Convert long algebraic notation (e.g. 'e2-e4', 'b1-c3') to SAN"""
+        if '-' not in move_str:
+            return move_str
+
+        from_square, to_square = move_str.split('-')
+        try:
+            from_sq = chess.parse_square(from_square.lower())
+            to_sq = chess.parse_square(to_square.lower())
+
+            # Create the move and verify it's legal
+            move = chess.Move(from_sq, to_sq)
+            if move in self.board.legal_moves:
+                return self.board.san(move)
+        except ValueError:
+            pass
+
+        return None
+
     def extract_potential_moves(self, text: str) -> list[str]:
         """Extract potential chess moves using regex"""
-        return [match.group() for match in self._move_regex.finditer(text)]
+        moves = []
+        for match in self._move_regex.finditer(text):
+            move = match.group()
+            # Convert long algebraic notation if needed
+            if '-' in move:
+                converted = self.convert_long_algebraic(move)
+                if converted:
+                    moves.append(converted)
+            else:
+                moves.append(move)
+        return moves
 
     def validate_move(self, move: str) -> bool:
         """Check if a move is legal in the current position"""
@@ -102,54 +130,3 @@ intent_classifier = IntentClassifier()
 def categorize_intent(message: str) -> Dict[str, any]:
     """Wrapper for backwards compatibility"""
     return intent_classifier.classify(message)
-=======
-def extract_move(user_message: str) -> str:
-    """
-    Extract the chess move from the user's message using the RoBERTa model.
-
-    Args:
-    user_message (str): The user's input message.
-
-    Returns:
-    str: The extracted move or an error message.
-    """
-    try:
-        # Use the RoBERTa model to extract the move
-        question = "What chess move is being described in this message?"
-        result = roberta_qa(question=question, context=user_message)
-
-        # The answer might need further processing to ensure it's in proper chess notation
-        extracted_move = result['answer'].strip()
-
-        return extracted_move
-    except Exception as e:
-        return f"Error extracting move: {str(e)}"
-
-def categorize_intent(user_message: str) -> Dict[str, str]:
-    """
-    Categorize the user's intent and extract the move if applicable.
-
-    Args:
-    user_message (str): The user's input message.
-
-    Returns:
-    Dict[str, str]: A dictionary containing the predicted intent, confidence score, and extracted move (if applicable).
-    """
-    predictions = intent_pipeline(user_message, CHESS_INTENTS)
-    predicted_intent = predictions["labels"][0]
-    confidence_score = predictions["scores"][0]
-
-    if predicted_intent == "make_chess_move":
-        extracted_move = extract_move(user_message)
-        return {
-            "intent": predicted_intent,
-            "confidence": confidence_score,
-            "move": extracted_move
-        }
-    else:
-        return {
-            "intent": predicted_intent,
-            "confidence": confidence_score,
-            "move": None
-        }
->>>>>>> parent of de49885 (latetest updates)
