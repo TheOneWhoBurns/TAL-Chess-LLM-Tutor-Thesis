@@ -1,30 +1,24 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chess Tutor</title>
-
-    <!-- Chess Dependencies -->
     <link rel="stylesheet" href="{% static 'css/chessboard-1.0.0.min.css' %}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
-
     <!-- Load jQuery first -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-    <!-- Chess.js and Chessboard.js -->
+    <!-- Load the chess library -->
     <script src="{% static 'js/chess.min.js' %}"></script>
+    <!-- Load chessboard library -->
     <script src="{% static 'js/chessboard-1.0.0.min.js' %}"></script>
 </head>
 <body>
-<!-- Simple structure first, we'll add React later -->
 <div class="container">
     <div id="board-section">
         <div id="board"></div>
         <div class="board-controls">
-            <button id="newGameBtn">New Game</button>
-            <button id="flipBoardBtn">Flip Board</button>
+            <button onclick="resetGame()">New Game</button>
+            <button onclick="flipBoard()">Flip Board</button>
         </div>
     </div>
 
@@ -38,40 +32,17 @@
 
         <div id="chat-container">
             <div id="chat-messages"></div>
-            <form id="chat-form" class="chat-form">
-                {% csrf_token %}
-                <input type="text" id="user-input" placeholder="Type your message...">
+            <form id="chat-form">
+                <input type="text" id="user-input" placeholder="Type your move or message...">
                 <button type="submit">Send</button>
+                {% csrf_token %}
             </form>
         </div>
     </div>
 </div>
 
-<!-- Initialize the board -->
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initialize the board
-        const board = Chessboard('board', {
-            position: 'start',
-            draggable: true,
-            pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png'
-        });
-
-        // Add button handlers
-        document.getElementById('newGameBtn').addEventListener('click', () => {
-            board.start();
-        });
-
-        document.getElementById('flipBoardBtn').addEventListener('click', () => {
-            board.flip();
-        });
-
-        // Make board responsive
-        window.addEventListener('resize', board.resize);
-    });
-</script>
-
-<!-- Chat functionality -->
+<!-- Load our custom scripts last -->
+<script src="{% static 'js/chess.js' %}"></script>
 <script src="{% static 'js/chat.js' %}"></script>
 </body>
 </html>

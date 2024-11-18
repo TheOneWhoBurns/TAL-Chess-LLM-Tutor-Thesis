@@ -1,24 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize DOM elements
     const chatContainer = document.getElementById('chat-container');
     const chatMessages = document.getElementById('chat-messages');
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const historyContent = document.querySelector('.history-content');
 
-    // Function to safely scroll to bottom
     function scrollToBottom(element) {
         if (element) {
             element.scrollTop = element.scrollHeight;
         }
     }
 
-    // Set up MutationObserver for chat messages
     const chatObserver = new MutationObserver(() => {
         scrollToBottom(chatMessages);
     });
 
-    // Start observing chat messages
     chatObserver.observe(chatMessages, {
         childList: true,
         subtree: true
@@ -54,8 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.status === 'success') {
                 addMessage('Tutor', data.response);
-
-                // Dispatch server response to chess component
                 const serverEvent = new CustomEvent('serverResponse', { detail: data });
                 window.dispatchEvent(serverEvent);
             } else {
@@ -68,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Handle form submission
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const message = userInput.value.trim();
@@ -76,18 +69,16 @@ document.addEventListener('DOMContentLoaded', () => {
         sendMessage(message);
     });
 
-    // Listen for chess moves
-    window.addEventListener('chessMove', (e) => {
-        sendMessage(e.detail);
+    // Listen for chess moves with simplified data
+    window.addEventListener('chessMoveToChat', (e) => {
+        sendMessage(e.detail); // Now receiving just the move string
     });
 
-    // Listen for game reset
     window.addEventListener('chessReset', () => {
-        chatMessages.innerHTML = ''; // Clear chat on new game
+        chatMessages.innerHTML = '';
         sendMessage('new game');
     });
 
-    // Helper function to get CSRF token
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -103,7 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return cookieValue;
     }
 
-    // Initial scroll to bottom for both containers
     scrollToBottom(chatMessages);
     scrollToBottom(historyContent);
 });

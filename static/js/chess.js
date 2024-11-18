@@ -1,168 +1,119 @@
-// Initialize React in non-module context
-import React from "react";
+// No need for React imports since we're using from CDN
+const ChessGame = {
+    init: function() {
+        this.board = null;
+        this.game = new Chess();
+        this.initBoard();
+        this.setupEventListeners();
+    },
 
-const { useState, useEffect, useRef } = React;
-
-const ChessTutorInterface = () => {
-    const boardRef = useRef(null);
-    const gameRef = useRef(null);
-    const moveHistoryRef = useRef(null);
-    const [moveHistory, setMoveHistory] = useState([]);
-    const [position, setPosition] = useState('start');
-
-    useEffect(() => {
-        // Initialize chess.js and chessboard
-        const Chess = window.Chess;
-        const Chessboard = window.Chessboard;
-
-        gameRef.current = new Chess();
-
-        boardRef.current = Chessboard('board', {
+    initBoard: function() {
+        this.board = Chessboard('board', {
             position: 'start',
             draggable: true,
             dropOffBoard: 'snapback',
             pieceTheme: '/static/img/chesspieces/wikipedia/{piece}.png',
-            onDrop: handleMove,
-            onSnapEnd: updatePosition
+            onDrop: this.handleMove.bind(this)
         });
 
         // Make board responsive
-        const handleResize = () => {
-            if (boardRef.current) {
-                boardRef.current.resize();
+        window.addEventListener('resize', () => {
+            if (this.board) {
+                this.board.resize();
             }
-        };
+        });
+    },
 
-        window.addEventListener('resize', handleResize);
+    setupEventListeners: function() {
+        // Set up button handlers
+        window.resetGame = this.resetGame.bind(this);
+        window.flipBoard = this.flipBoard.bind(this);
 
-        // Set up functions on window for button access
-        window.resetGame = resetGame;
-        window.flipBoard = flipBoard;
+        // Listen for server responses
+        window.addEventListener('serverResponse', this.handleServerResponse.bind(this));
+    },
 
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            if (boardRef.current) {
-                boardRef.current.destroy();
-            }
-            // Clean up window functions
-            delete window.resetGame;
-            delete window.flipBoard;
-        };
-    }, []);
-
-    // Auto-scroll move history
-    useEffect(() => {
-        if (moveHistoryRef.current) {
-            moveHistoryRef.current.scrollTop = moveHistoryRef.current.scrollHeight;
-        }
-    }, [moveHistory]);
-
-    const updatePosition = () => {
-        setPosition(gameRef.current.fen());
-    };
-
-    const handleMove = (source, target, piece, newPos, oldPos, orientation) => {
+    handleMove: function(source, target) {
         try {
-            const move = gameRef.current.move({
+            const move = this.game.move({
                 from: source,
                 to: target,
-                promotion: 'q' // always promote to queen for simplicity
+                promotion: 'q'
             });
 
             if (move === null) return 'snapback';
 
-            updatePosition();
-
-            // Notify chat system about the move
-            const moveStr = `${source}${target}`;
-            const moveEvent = new CustomEvent('chessMove', {
-                detail: {
-                    move: moveStr,
-                    fen: gameRef.current.fen(),
-                    pgn: gameRef.current.pgn()
-                }
+            // Send move to chat system as UCI format
+            const moveStr = `${source}-${target}`;
+            // Send the move through chat system just like if it was typed
+            const chatForm = document.getElementById('chat-form');
+            const userInput = document.getElementById('user-input');
+            userInput.value = moveStr;
+            // Trigger the form's submit event
+            const submitEvent = new Event('submit', {
+                bubbles: true,
+                cancelable: true,
             });
-            window.dispatchEvent(moveEvent);
+            chatForm.dispatchEvent(submitEvent);
 
             return true;
         } catch (err) {
             console.error('Move error:', err);
             return 'snapback';
         }
-    };
+    },
 
-    const resetGame = () => {
-        gameRef.current.reset();
-        boardRef.current.start();
-        setMoveHistory([]);
-        setPosition('start');
+    handleServerResponse: function(e) {
+        const data = e.detail;
+        if (data.moves) {
+            this.updateMoveHistory(data.moves);
+        }
+        if (data.fen) {
+            this.game.load(data.fen);
+            this.board.position(data.fen);
+        }
+    },
+
+    updateMoveHistory: function(moves) {
+        const historyContent = document.querySelector('.history-content');
+        if (!historyContent) return;
+
+        historyContent.innerHTML = '';
+        for (let i = 0; i < moves.length; i += 2) {
+            const moveElement = document.createElement('div');
+            moveElement.className = 'move-row';
+
+            let rowHtml = `<span class="move-number">${Math.floor(i/2 + 1)}.</span>`;
+            rowHtml += `<span class="white-move">${moves[i]}</span>`;
+            if (moves[i + 1]) {
+                rowHtml += `<span class="black-move">${moves[i + 1]}</span>`;
+            }
+
+            moveElement.innerHTML = rowHtml;
+            historyContent.appendChild(moveElement);
+        }
+
+        historyContent.scrollTop = historyContent.scrollHeight;
+    },
+
+    resetGame: function() {
+        this.game.reset();
+        this.board.start();
         const resetEvent = new CustomEvent('chessReset');
         window.dispatchEvent(resetEvent);
-    };
+    },
 
-    const flipBoard = () => {
-        boardRef.current.flip();
-    };
-
-    // Listen for server responses
-    useEffect(() => {
-        const handleServerResponse = (e) => {
-            const data = e.detail;
-            if (data.moves) {
-                setMoveHistory(data.moves);
-            }
-            if (data.fen) {
-                gameRef.current.load(data.fen);
-                boardRef.current.position(data.fen);
-                setPosition(data.fen);
-            }
-        };
-
-        window.addEventListener('serverResponse', handleServerResponse);
-        return () => window.removeEventListener('serverResponse', handleServerResponse);
-    }, []);
-
-    return (
-        <div className="container">
-            <div id="board-section">
-                <div id="board"></div>
-                <div className="board-controls">
-                    <button onClick={resetGame}>New Game</button>
-                    <button onClick={flipBoard}>Flip Board</button>
-                </div>
-            </div>
-
-            <div className="right-panel">
-                <div id="move-history">
-                    <div className="history-header">
-                        <h3>Move History</h3>
-                    </div>
-                    <div ref={moveHistoryRef} className="history-content">
-                        {moveHistory.map((move, i) => (
-                            <div key={i} className="move-row">
-                                {i % 2 === 0 && (
-                                    <span className="move-number">{Math.floor(i/2 + 1)}.</span>
-                                )}
-                                <span className="move-text">{move}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div id="chat-container">
-                    <div id="chat-messages"></div>
-                    <form id="chat-form">
-                        <input type="text" id="user-input" placeholder="Type your move or message..." />
-                        <button type="submit">Send</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    );
+    flipBoard: function() {
+        this.board.flip();
+    }
 };
 
-// Mount the React component
-ReactDOM.render(
-    <ChessTutorInterface />,
-    document.getElementById('root')
-);
+// Initialize when DOM is fully loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Make sure Chess and Chessboard are available
+    if (typeof Chess !== 'undefined' && typeof Chessboard !== 'undefined') {
+        ChessGame.init();
+    } else {
+        console.error('Chess or Chessboard library not loaded');
+    }
+});
