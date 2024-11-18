@@ -1,8 +1,11 @@
 # models.py
+import os
+
 from transformers import pipeline
 import torch
 import anthropic
-import os
+from dotenv import load_dotenv
+load_dotenv()
 
 class ModelManager:
     _instance = None
@@ -42,7 +45,7 @@ class ModelManager:
             )
 
             self.client = anthropic.Anthropic(
-                api_key= "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"
+                api_key= os.environ.get('ANTHROPIC_API_KEY')
             )
 
         except Exception as e:

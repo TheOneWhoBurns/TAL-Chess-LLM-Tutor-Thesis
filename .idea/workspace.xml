@@ -6,14 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="af1c111d-88ad-4e6f-88b8-0d585acfb541" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/chess_tutor.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/chess_tutor.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/chess_tutor/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/chess_tutor/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/directory_structure.txt" beforeDir="false" afterPath="$PROJECT_DIR$/directory_structure.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/chat.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/chat.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/static/js/chess.js" beforeDir="false" afterPath="$PROJECT_DIR$/static/js/chess.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/static/vendor/chessboardjs-1.0.0" beforeDir="false" afterPath="$PROJECT_DIR$/static/vendor/chessboardjs-1.0.0" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/chat.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/chat.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,12 +99,15 @@
       <updated>1731511953844</updated>
       <workItem from="1731511954834" duration="1539000" />
       <workItem from="1731861488044" duration="8205000" />
-      <workItem from="1731950129029" duration="3309000" />
+      <workItem from="1731950129029" duration="3943000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName=".env" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
