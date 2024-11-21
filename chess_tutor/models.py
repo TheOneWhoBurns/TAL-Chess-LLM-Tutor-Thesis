@@ -5,6 +5,7 @@ from transformers import pipeline
 import torch
 import anthropic
 from dotenv import load_dotenv
+
 load_dotenv()
 
 class ModelManager:
@@ -44,11 +45,10 @@ class ModelManager:
                 device=self.device
             )
 
-            api_key = os.getenv('ANTHROPIC_API_KEY')
-            if not api_key:
-                raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
-
-            self.client = anthropic.Anthropic(api_key=api_key)
+            # Initialize Anthropic client with API key from environment
+            self.client = anthropic.Anthropic(
+                api_key=os.getenv('ANTHROPIC_API_KEY')
+            )
 
         except Exception as e:
             print(f"Error initializing models: {e}")
