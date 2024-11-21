@@ -1,42 +1,88 @@
 # PromptMaker.py
-import chess
 import re
+from typing import List, Dict
 
 class PromptMaker:
     def __init__(self):
         # Define move pattern for detecting lone moves
         self._move_pattern = re.compile(r'^[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?\+?\#?$|^O-O(-O)?$')
 
-    def create_move_prompt(self, user_move: str, maia_move: str, board: chess.Board, user_message: str) -> str:
+    def create_move_prompt(self, user_move: str, maia_move: str, move_history: List[str], chat_history: List[Dict[str, str]], user_message: str) -> str:
         """
-        Create prompt for move analysis only if needed
+        Create prompt for move analysis using move history and chat history
+
+        Args:
+            user_move: The current move made by the user
+            maia_move: The response move by Maia
+            move_history: List of all moves in the game so far in algebraic notation
+            chat_history: List of dictionaries containing previous chat messages
+                        Format: [{"role": "user"|"assistant", "content": "message"}]
+            user_message: The current message from the user
         """
 
-        # If user asked about the move, create analysis prompt
+        # Format move history
+        moves_formatted = " ".join(f"{i//2 + 1}.{move}" if i % 2 == 0 else move
+                                   for i, move in enumerate(move_history))
+
+        # Format recent chat context (last 3 exchanges)
+        recent_chat = chat_history[-6:] if len(chat_history) > 6 else chat_history
+        chat_formatted = "\n".join([
+            f"{'User' if msg['role'] == 'user' else 'You'}: {msg['content']}"
+            for msg in recent_chat
+        ])
+
         return f"""
-            Here is the current chess position and the moves to evaluate:
-
-            {board.fen()}
+            You are an AI chess tutor designed to play chess with users while providing instruction to help them improve their skills. Your goal is to create an engaging and educational experience for the user.
+            
+            Game progress so far:
+            {moves_formatted}
+            
+            Recent conversation:
+            {chat_formatted}
+            
+            The user's latest move:
             {user_move}
+            
+            Maia's response move:
             {maia_move}
             
-            Instructions:
-            1. Analyze the given chess position and the two moves (user's move and Maia's move).
-            2. Evaluate the moves based on their strategic importance and impact on the game.
-            3. Provide a concise response to the user, focusing on educational value.
-            
-            Use the following guidelines for your response:
-            - For normal moves: Offer a brief, one-line comment.
-            - For crucial moves: Explain the move's importance and potential impact in 2-3 sentences.
+            Then, provide your response to the user. Your response should be very very short
+            - For normal moves: Offer a brief, one-line comment. (THIS IS THE MOST IMPORTANT PART)
+            - For crucial moves: Explain the move's importance and potential impact in 1 sentence.
             - If explaining a concept: Provide a concise explanation that hints at the best move without revealing it directly.
             
-            Always maintain a friendly and encouraging tone, and adapt your explanations to the apparent skill level of the user
-            Then, provide your feedback to the user
-            Remember to keep your response concise, at most one sentence, providing longer explanations only when strictly necessary for crucial moves or complex concepts."""
+            Always maintain a friendly and encouraging tone, and adapt your explanations to the apparent skill level of the user. Keep your response concise and information-dense, avoiding walls of text.
+            
+            Remember to:
+            - Make your response feel like a natural dialog not a commentary of the game that will continue as the game progress, as if being taught by another human or a friend, refer to black as "me" and white as "you", use emojis and talk casually (you may even have a bit of banter).
+            - Consider the context of any previous conversation when responding.
+            - If the user has been struggling with certain concepts (based on chat history), provide gentle guidance.
+            """
 
-    def create_chat_prompt(self, board: chess.Board, user_message: str) -> str:
-        """Create prompt for chess questions/chat"""
-        return f"""Current chess position: {board.fen()}
+    def create_chat_prompt(self, move_history: List[str], chat_history: List[Dict[str, str]], user_message: str) -> str:
+        """
+        Create prompt for chess questions/chat
+
+        Args:
+            move_history: List of all moves in the game
+            chat_history: List of previous chat messages
+            user_message: Current user message
+        """
+        moves_formatted = " ".join(f"{i//2 + 1}.{move}" if i % 2 == 0 else move
+                                   for i, move in enumerate(move_history))
+
+        recent_chat = chat_history[-6:] if len(chat_history) > 6 else chat_history
+        chat_formatted = "\n".join([
+            f"{'User' if msg['role'] == 'user' else 'You'}: {msg['content']}"
+            for msg in recent_chat
+        ])
+
+        return f"""Game progress:
+                  {moves_formatted}
+                  
+                  Recent conversation:
+                  {chat_formatted}
+                  
                   User asks: {user_message}"""
 
     def create_game_start_response(self) -> str:

@@ -44,9 +44,11 @@ class ModelManager:
                 device=self.device
             )
 
-            self.client = anthropic.Anthropic(
-                api_key= os.environ.get('ANTHROPIC_API_KEY')
-            )
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+
+            self.client = anthropic.Anthropic(api_key=api_key)
 
         except Exception as e:
             print(f"Error initializing models: {e}")
@@ -58,7 +60,7 @@ class ModelManager:
             # Generate response using Claude
             message = self.client.messages.create(
                 model="claude-3-5-haiku-20241022",
-                max_tokens=150,  # Keep responses short
+                max_tokens=100,  # Keep responses short
                 temperature=0.7,
                 system="""
                 

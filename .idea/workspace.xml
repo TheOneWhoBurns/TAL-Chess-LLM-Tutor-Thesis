@@ -7,8 +7,12 @@
     <list default="true" id="af1c111d-88ad-4e6f-88b8-0d585acfb541" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chess_tutor/ChessLogic.py" beforeDir="false" afterPath="$PROJECT_DIR$/chess_tutor/ChessLogic.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chess_tutor/PromptMaker.py" beforeDir="false" afterPath="$PROJECT_DIR$/chess_tutor/PromptMaker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/chess_tutor/maia_engine.py" beforeDir="false" afterPath="$PROJECT_DIR$/chess_tutor/maia_engine.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/chess_tutor/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/chess_tutor/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/static/vendor/chessboardjs-1.0.0" beforeDir="false" afterPath="$PROJECT_DIR$/static/vendor/chessboardjs-1.0.0" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../models.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,6 +40,7 @@
     &quot;Django Server.Django.executor&quot;: &quot;Run&quot;,
     &quot;Notification.DisplayName-DoNotAsk-Database detector&quot;: &quot;Database detector&quot;,
     &quot;Notification.DoNotAsk-Database detector&quot;: &quot;true&quot;,
+    &quot;Python.PromptMaker.executor&quot;: &quot;ConcurrencyExecutor&quot;,
     &quot;Python.manage.executor&quot;: &quot;Run&quot;,
     &quot;Python.settings.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.OpenDjangoStructureViewOnStart&quot;: &quot;true&quot;,
@@ -53,7 +58,30 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RunManager">
+  <component name="RunManager" selected="Django Server.Django">
+    <configuration name="PromptMaker" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="chess_tutor" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/chess_tutor" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/chess_tutor/PromptMaker.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="Django" type="Python.DjangoServer" factoryName="Django server">
       <module name="chess_tutor" />
       <option name="ENV_FILES" value="" />
@@ -80,12 +108,17 @@
       <option name="customRunCommand" value="" />
       <method v="2" />
     </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.PromptMaker" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-28b599e66164-intellij.indexing.shared.core-IU-242.23339.11" />
-        <option value="bundled-js-predefined-d6986cc7102b-5c90d61e3bab-JavaScript-IU-242.23339.11" />
+        <option value="bundled-jdk-9823dce3aa75-fdfe4dae3a2d-intellij.indexing.shared.core-IU-243.21565.193" />
+        <option value="bundled-js-predefined-d6986cc7102b-e768b9ed790e-JavaScript-IU-243.21565.193" />
       </set>
     </attachedChunks>
   </component>
@@ -99,7 +132,9 @@
       <updated>1731511953844</updated>
       <workItem from="1731511954834" duration="1539000" />
       <workItem from="1731861488044" duration="8205000" />
-      <workItem from="1731950129029" duration="3943000" />
+      <workItem from="1731950129029" duration="4423000" />
+      <workItem from="1732133505030" duration="1350000" />
+      <workItem from="1732208598035" duration="3479000" />
     </task>
     <servers />
   </component>

@@ -8,6 +8,7 @@ class ChessLogicUnit:
     def __init__(self, project_dir=None):
         self.board = chess.Board()
         self.move_history = []
+        self.chat_history = []
         if project_dir:
             self.maia_engine = MaiaEngine(project_dir)
         self.game_in_progress = False
@@ -184,9 +185,12 @@ class ChessLogicUnit:
 
         # If it's just a move without question, don't add commentary
         if self.prompt_maker._is_lone_move(message):
+            response_msg = f"{move}. Maia plays {san_response}."
+            self.chat_history.append({"role": "user", "content": message})
+            self.chat_history.append({"role": "assistant", "content": response_msg})
             return {
                 "status": "success",
-                "message": f"{move}. Maia plays {san_response}.",
+                "message": response_msg,
                 "moves": self.move_history
             }
 
@@ -194,31 +198,40 @@ class ChessLogicUnit:
         prompt = self.prompt_maker.create_move_prompt(
             user_move=move,
             maia_move=san_response,
-            board=self.board,
+            move_history=self.move_history,
+            chat_history=self.chat_history,
             user_message=message
         )
 
         if prompt:
             analysis = model_manager.quick_response(prompt)
+            self.chat_history.append({"role": "user", "content": message})
+            self.chat_history.append({"role": "assistant", "content": analysis})
             return {
                 "status": "success",
-                "message": analysis ,
+                "message": analysis,
                 "moves": self.move_history
             }
 
+        response_msg = f"{move}. Maia plays {san_response}."
+        self.chat_history.append({"role": "user", "content": message})
+        self.chat_history.append({"role": "assistant", "content": response_msg})
         return {
             "status": "success",
-            "message": f"{move}. Maia plays {san_response}.",
+            "message": response_msg,
             "moves": self.move_history
         }
 
     def _handle_explanation(self, message: str) -> Dict:
         """Handle explanation requests"""
         prompt = self.prompt_maker.create_chat_prompt(
-            board=self.board,
+            move_history=self.move_history,
+            chat_history=self.chat_history,
             user_message=message
         )
         response = model_manager.quick_response(prompt)
+        self.chat_history.append({"role": "user", "content": message})
+        self.chat_history.append({"role": "assistant", "content": response})
         return {
             "status": "success",
             "message": response,
@@ -228,15 +241,26 @@ class ChessLogicUnit:
     def _handle_chat(self, message: str) -> Dict:
         """Handle general chat"""
         prompt = self.prompt_maker.create_chat_prompt(
-            board=self.board,
+            move_history=self.move_history,
+            chat_history=self.chat_history,
             user_message=message
         )
         response = model_manager.quick_response(prompt)
+        self.chat_history.append({"role": "user", "content": message})
+        self.chat_history.append({"role": "assistant", "content": response})
         return {
             "status": "success",
             "message": response,
             "moves": self.move_history
         }
+
+    def _reset_game(self):
+        """Reset the game state"""
+        self.board.reset()
+        self.move_history.clear()
+        self.chat_history.clear()  # Clear chat history when starting new game
+        self.game_in_progress = True
+        self.player_color = chess.WHITE  # Reset player color
 
     def _handle_unknown(self, message: str) -> Dict:
         """Handle unknown intents"""
@@ -245,13 +269,6 @@ class ChessLogicUnit:
             "message": "I didn't understand that. Could you rephrase?",
             "moves": self.move_history
         }
-
-    def _reset_game(self):
-        """Reset the game state"""
-        self.board.reset()
-        self.move_history.clear()
-        self.game_in_progress = True
-        self.player_color = chess.WHITE  # Reset player color
 
     def close(self):
         """Clean up resources"""

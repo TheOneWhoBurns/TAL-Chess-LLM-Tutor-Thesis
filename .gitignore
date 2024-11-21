@@ -1,2 +1,3 @@
 .env
 static/vendor/chessboardjs-1.0.0
+/chess_tutor/__pycache__
