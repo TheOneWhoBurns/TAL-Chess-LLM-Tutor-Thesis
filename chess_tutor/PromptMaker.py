@@ -58,6 +58,78 @@ class PromptMaker:
             - Consider the context of any previous conversation when responding.
             - If the user has been struggling with certain concepts (based on chat history), provide gentle guidance.
             """
+    def create_explanation_prompt(self, move_history: List[str], chat_history: List[Dict[str, str]],
+                                  user_message: str, board_analysis: Dict) -> str:
+        """
+        Create a detailed prompt for chess explanations using Maia analysis
+
+        Args:
+            move_history: List of all moves in the game
+            chat_history: List of previous chat messages
+            user_message: Current user question
+            board_analysis: Dictionary containing Maia's analysis:
+                {
+                    'position_eval': float,  # Current position evaluation
+                    'top_moves': List[Dict],  # Top alternative moves
+                    'last_move_quality': Dict,  # Quality assessment of last move
+                }
+        """
+        # Format move history
+        moves_formatted = " ".join(f"{i//2 + 1}.{move}" if i % 2 == 0 else move
+                                   for i, move in enumerate(move_history))
+
+        # Format recent chat
+        recent_chat = chat_history[-6:] if len(chat_history) > 6 else chat_history
+        chat_formatted = "\n".join([
+            f"{'User' if msg['role'] == 'user' else 'You'}: {msg['content']}"
+            for msg in recent_chat
+        ])
+
+        # Format position evaluation
+        eval_text = f"Current position evaluation: {board_analysis['position_eval']/100:.2f} pawns"
+        if board_analysis['position_eval'] > 0:
+            eval_text += " (advantage to White)"
+        elif board_analysis['position_eval'] < 0:
+            eval_text += " (advantage to Black)"
+
+        # Format alternative moves
+        alt_moves = "\n".join([
+            f"- {move['san']}: evaluation {move['evaluation']/100:.2f}"
+            for move in board_analysis['top_moves'][:3]
+        ])
+
+        # Format last move quality
+        last_move = board_analysis['last_move_quality']
+        move_quality = (f"The last move was considered {last_move['quality']} "
+                        f"(evaluation change: {last_move['evaluation_difference']/100:.2f})")
+
+        return f"""
+            You are an AI chess tutor designed to play chess with users while providing instruction to help them improve their skills. Your goal is to create an engaging and educational experience for the user.
+            
+            Current game state:
+            {moves_formatted}
+            
+            Position Analysis:
+            {eval_text}
+            {move_quality}
+            
+            Top alternative moves:
+            {alt_moves}
+            
+            Recent conversation:
+            {chat_formatted}
+            
+            User asks: {user_message}
+            
+            Provide a clear, concise explanation that hints at the evaluation, move quality and top move without revealing it directly.:
+            Remember to :
+            1. Directly addresses the user's question
+            2. References the position evaluation, best move and analysis only when relevant or asked directly
+            3. Make your response feel like a natural dialog not a commentary of the game that will continue as the game progress, as if being taught by another human or a friend, refer to black as "me" and white as "you", use emojis and talk casually (you may even have a bit of banter).
+            
+            Always maintain a friendly and encouraging tone, and adapt your explanations to the apparent skill level of the user. Keep your response concise and information-dense, avoiding walls of text.
+            
+            Response should be informative but concise, no more than 2-3 sentences. """
 
     def create_chat_prompt(self, move_history: List[str], chat_history: List[Dict[str, str]], user_message: str) -> str:
         """

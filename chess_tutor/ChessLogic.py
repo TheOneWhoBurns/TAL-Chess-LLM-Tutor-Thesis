@@ -42,6 +42,14 @@ class ChessLogicUnit:
                 "moves": []
             }
 
+        if not self.game_in_progress and message.lower() in ['yes', 'sure', 'okay', 'play', 'play again', 'new game']:
+            self._reset_game()
+            return {
+                "status": "success",
+                "message": "Great! Let's start a new game. I'll be black.",
+                "moves": []
+            }
+
         if intent == "quit_game":
             self.game_in_progress = False
             return {
@@ -95,8 +103,9 @@ class ChessLogicUnit:
             except ValueError:
                 pass
 
+            # In the _make_move method:
             # Check for castling notation (O-O or O-O-O)
-            if move_str.upper() in ['OO', 'OOO', '00', '000']:
+            if move_str.upper() in ['OO', 'OOO', 'O-O', 'O-O-O']:
                 is_kingside = len(move_str) <= 2
                 if is_kingside:
                     castle_move = 'e1g1' if self.board.turn else 'e8g8'
@@ -109,7 +118,10 @@ class ChessLogicUnit:
                         self.board.push(move)
                         self.move_history.append(san_move)
                         return True
-                except ValueError:
+                    else:
+                        print("[ChessLogic] Move is not legal")
+                except ValueError as e:
+                    print(f"[ChessLogic] ValueError in castling: {str(e)}")
                     pass
                 
             # Try parsing as UCI (e2e4 format)
@@ -162,29 +174,89 @@ class ChessLogicUnit:
 
     def _handle_move(self, message: str, move: str) -> Dict:
         """Handle move intent"""
+        # Special check for castling moves (process these before same square check)
+        if move in ['e1-g1', 'e1-c1', 'e8-g8', 'e8-c8']:
+            castling_move = 'O-O' if move in ['e1-g1', 'e8-g8'] else 'O-O-O'
+            if not self._make_move(castling_move):
+                return {
+                    "status": "error",
+                    "message": "Invalid move.",
+                    "moves": self.move_history
+                }
         # Check for same square move
-        if len(move) >= 4 and move[:2] == move[2:4]:
+        elif len(move) >= 4 and move[:2] == move[2:4]:
             return {
                 "status": "ignore",
                 "message": "",
                 "moves": self.move_history
             }
-
-        if not self._make_move(move):
+        # Handle regular moves
+        elif not self._make_move(move):
             return {
                 "status": "error",
                 "message": "Invalid move.",
                 "moves": self.move_history
             }
 
-        # Get Maia's response
-        maia_move = self.maia_engine.get_best_move(self.board)
-        san_response = self.board.san(maia_move)  # Convert Move object to SAN
-        self.board.push(maia_move)
-        self.move_history.append(san_response)
+        # Check for game end after player's move
+        game_end = self._check_game_end()
+        if game_end["status"] == "game_over":
+            self.game_in_progress = False
+            return {
+                "status": "success",
+                "message": f"{move}. {game_end['message']}",
+                "moves": self.move_history
+            }
 
-        # If it's just a move without question, don't add commentary
-        if self.prompt_maker._is_lone_move(message):
+        # Get Maia's response
+        try:
+            maia_move = self.maia_engine.get_best_move(self.board)
+            san_response = self.board.san(maia_move)  # Convert Move object to SAN
+            self.board.push(maia_move)
+            self.move_history.append(san_response)
+
+            game_end = self._check_game_end()
+            if game_end["status"] == "game_over":
+                self.game_in_progress = False
+                response_msg = f"{move}. Maia plays {san_response}. {game_end['message']}"
+                self.chat_history.append({"role": "user", "content": message})
+                self.chat_history.append({"role": "assistant", "content": response_msg})
+                return {
+                    "status": "success",
+                    "message": response_msg,
+                    "moves": self.move_history
+                }
+
+            # If it's just a move without question, don't add commentary
+            if self.prompt_maker._is_lone_move(message):
+                response_msg = f"{move}. Maia plays {san_response}."
+                self.chat_history.append({"role": "user", "content": message})
+                self.chat_history.append({"role": "assistant", "content": response_msg})
+                return {
+                    "status": "success",
+                    "message": response_msg,
+                    "moves": self.move_history
+                }
+
+            # Get analysis if user asked something with the move
+            prompt = self.prompt_maker.create_move_prompt(
+                user_move=move,
+                maia_move=san_response,
+                move_history=self.move_history,
+                chat_history=self.chat_history,
+                user_message=message
+            )
+
+            if prompt:
+                analysis = model_manager.quick_response(prompt)
+                self.chat_history.append({"role": "user", "content": message})
+                self.chat_history.append({"role": "assistant", "content": analysis})
+                return {
+                    "status": "success",
+                    "message": analysis,
+                    "moves": self.move_history
+                }
+
             response_msg = f"{move}. Maia plays {san_response}."
             self.chat_history.append({"role": "user", "content": message})
             self.chat_history.append({"role": "assistant", "content": response_msg})
@@ -193,50 +265,72 @@ class ChessLogicUnit:
                 "message": response_msg,
                 "moves": self.move_history
             }
-
-        # Get analysis if user asked something with the move
-        prompt = self.prompt_maker.create_move_prompt(
-            user_move=move,
-            maia_move=san_response,
-            move_history=self.move_history,
-            chat_history=self.chat_history,
-            user_message=message
-        )
-
-        if prompt:
-            analysis = model_manager.quick_response(prompt)
-            self.chat_history.append({"role": "user", "content": message})
-            self.chat_history.append({"role": "assistant", "content": analysis})
+        except Exception as e:
+            print(f"Error in Maia's response: {str(e)}")
             return {
-                "status": "success",
-                "message": analysis,
+                "status": "error",
+                "message": "An error occurred processing the move.",
                 "moves": self.move_history
             }
 
-        response_msg = f"{move}. Maia plays {san_response}."
-        self.chat_history.append({"role": "user", "content": message})
-        self.chat_history.append({"role": "assistant", "content": response_msg})
-        return {
-            "status": "success",
-            "message": response_msg,
-            "moves": self.move_history
-        }
-
     def _handle_explanation(self, message: str) -> Dict:
-        """Handle explanation requests"""
-        prompt = self.prompt_maker.create_chat_prompt(
-            move_history=self.move_history,
-            chat_history=self.chat_history,
-            user_message=message
-        )
-        response = model_manager.quick_response(prompt)
-        self.chat_history.append({"role": "user", "content": message})
-        self.chat_history.append({"role": "assistant", "content": response})
-        return {
-            "status": "success",
-            "message": response,
-            "moves": self.move_history
-        }
+        """Handle explanation requests with enhanced Maia analysis"""
+        try:
+            # Get position evaluation and top moves
+            position_eval = self.maia_engine.get_position_evaluation(self.board)
+            top_moves = self.maia_engine.get_top_moves(self.board, num_moves=3)
+
+            # Create board analysis dictionary
+            board_analysis = {
+                'position_eval': position_eval,
+                'top_moves': top_moves if isinstance(top_moves, list) else []
+            }
+
+            # Add last move quality if moves exist
+            move_stack = self.board.move_stack
+            if move_stack and len(move_stack) > 0:
+                temp_board = self.board.copy()
+                last_move = move_stack[-1]
+                temp_board.pop()
+                board_analysis['last_move_quality'] = self.maia_engine.evaluate_move_quality(temp_board, last_move)
+            else:
+                board_analysis['last_move_quality'] = {
+                    'quality': 'N/A',
+                    'evaluation_difference': 0,
+                    'absolute_evaluation': position_eval
+                }
+
+            # Generate response using enhanced prompt
+            prompt = self.prompt_maker.create_explanation_prompt(
+                move_history=self.move_history,
+                chat_history=self.chat_history,
+                user_message=message,
+                board_analysis=board_analysis
+            )
+
+            response = model_manager.quick_response(prompt)
+            self.chat_history.append({"role": "user", "content": message})
+            self.chat_history.append({"role": "assistant", "content": response})
+
+            return {
+                "status": "success",
+                "message": response,
+                "moves": self.move_history
+            }
+
+        except Exception as e:
+            # Fallback to simpler explanation without analysis
+            prompt = self.prompt_maker.create_chat_prompt(
+                move_history=self.move_history,
+                chat_history=self.chat_history,
+                user_message=message
+            )
+            response = model_manager.quick_response(prompt)
+            return {
+                "status": "success",
+                "message": response,
+                "moves": self.move_history
+            }
 
     def _handle_chat(self, message: str) -> Dict:
         """Handle general chat"""
@@ -251,6 +345,45 @@ class ChessLogicUnit:
         return {
             "status": "success",
             "message": response,
+            "moves": self.move_history
+        }
+
+    def _check_game_end(self) -> Dict[str, str]:
+        """Check if the game has ended and return appropriate message"""
+        if self.board.is_game_over():
+            outcome = self.board.outcome()
+            if outcome.winner == chess.WHITE:
+                return {
+                    "status": "game_over",
+                    "message": "Congratulations! You've won the game! Would you like to play again?",
+                    "moves": self.move_history
+                }
+            elif outcome.winner == chess.BLACK:
+                return {
+                    "status": "game_over",
+                    "message": "Checkmate! I win! Would you like to play again?",
+                    "moves": self.move_history
+                }
+            else:
+                # Handle draws
+                if outcome.termination == chess.Termination.STALEMATE:
+                    msg = "Game Over - Stalemate!"
+                elif outcome.termination == chess.Termination.INSUFFICIENT_MATERIAL:
+                    msg = "Game Over - Draw due to insufficient material!"
+                elif outcome.termination == chess.Termination.FIFTY_MOVES:
+                    msg = "Game Over - Draw by fifty-move rule!"
+                elif outcome.termination == chess.Termination.THREEFOLD_REPETITION:
+                    msg = "Game Over - Draw by threefold repetition!"
+                else:
+                    msg = "Game Over - Draw!"
+                return {
+                    "status": "game_over",
+                    "message": f"{msg} Would you like to play again?",
+                    "moves": self.move_history
+                }
+        return {
+            "status": "",
+            "message": "",
             "moves": self.move_history
         }
 

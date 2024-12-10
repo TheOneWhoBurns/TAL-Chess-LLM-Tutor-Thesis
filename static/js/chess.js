@@ -45,11 +45,11 @@ const ChessGame = {
 
             // Send move to chat system as UCI format
             const moveStr = `${source}-${target}`;
-            // Send the move through chat system just like if it was typed
-            const chatForm = document.getElementById('chat-form');
             const userInput = document.getElementById('user-input');
             userInput.value = moveStr;
+
             // Trigger the form's submit event
+            const chatForm = document.getElementById('chat-form');
             const submitEvent = new Event('submit', {
                 bubbles: true,
                 cancelable: true,

@@ -53,25 +53,11 @@ class MaiaEngine:
         return result.move
 
     def get_position_evaluation(self, board, time_limit=1.0):
-        """
-        Get numerical evaluation of the current position.
-
-        Args:
-        board (chess.Board): The current board position
-        time_limit (float): Time limit for analysis, in seconds
-
-        Returns:
-        float: Evaluation in centipawns from white's perspective
-        """
-        if not self.engine:
-            raise RuntimeError("Engine not initialized")
-
-        info = self.engine.analyse(
-            board,
-            chess.engine.Limit(time=time_limit),
-            multipv=1
-        )
-
+        """Get numerical evaluation of current position in centipawns"""
+        info = self.engine.analyse(board, chess.engine.Limit(time=time_limit), multipv=1)
+        # When using multipv, analysis returns a list of dictionaries
+        if isinstance(info, list):
+            info = info[0]  # Get first (and only) analysis
         return info["score"].white().score(mate_score=10000)
 
     def get_top_moves(self, board, num_moves=5, time_limit=1.0):

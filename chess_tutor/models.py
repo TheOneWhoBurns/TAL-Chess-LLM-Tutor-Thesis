@@ -60,7 +60,7 @@ class ModelManager:
             # Generate response using Claude
             message = self.client.messages.create(
                 model="claude-3-5-haiku-20241022",
-                max_tokens=100,  # Keep responses short
+                max_tokens=1000,  # Keep responses short
                 temperature=0.7,
                 system="""
                 

@@ -44,7 +44,7 @@ def send_message(request):
             })
 
         except Exception as e:
-            print(f"Error in send_message: {str(e)}")
+            print(f"[Views] Error in send_message: {str(e)}")
             return JsonResponse({
                 'response': "I apologize, but I encountered an error.",
                 'status': "error",
